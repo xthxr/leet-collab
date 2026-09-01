@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-const FROM_EMAIL = 'LeetCollab <noreply@leet-collab.dev>'
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'LeetCollab <onboarding@resend.dev>'
 
 // Lazy client — not instantiated at module load (avoids build errors when key is absent)
 function getResend() {

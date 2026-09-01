@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { buildNudgeEmail } from '@/lib/email/templates'
+import { buildNudgeEmail, sendEmail } from '@/lib/email/templates'
 import { z } from 'zod'
 
 const nudgeSchema = z.object({
@@ -44,8 +44,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not both in the same group' }, { status: 403 })
     }
 
-    // Check target hasn't already practiced today
-    const today = new Date().toISOString().split('T')[0]
+    // Check target hasn't already practiced today (in IST)
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    })
+    const parts = formatter.formatToParts(new Date())
+    const p = Object.fromEntries(parts.map(pt => [pt.type, pt.value]))
+    const today = `${p.year}-${p.month}-${p.day}`
     const { data: alreadyDone } = await serviceClient
       .from('daily_activity')
       .select('id')
@@ -81,15 +87,40 @@ export async function POST(request: NextRequest) {
       serviceClient.from('group_streaks').select('current_streak').eq('group_id', group_id).single(),
     ])
 
-    // Queue the email if recipient has nudge emails enabled
+    // Send and queue the email if recipient has nudge emails enabled
     if (toProfile.data?.email_nudges && toProfile.data?.email && group.data && fromProfile.data) {
       const { subject, html, text } = buildNudgeEmail({
         toName: toProfile.data.full_name ?? 'there',
         fromName: fromProfile.data.full_name ?? 'A teammate',
         groupName: group.data.name,
         currentStreak: streak.data?.current_streak ?? 0,
-        appUrl: process.env.NEXT_PUBLIC_APP_URL!,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://leet-collab.vercel.app',
       })
+
+      let sendStatus = 'pending'
+      let errorMessage: string | null = null
+
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resendResult = await sendEmail({
+            to: toProfile.data.email,
+            subject,
+            html,
+            text,
+          })
+          if (resendResult.error) {
+            console.error('Resend send failed:', resendResult.error)
+            sendStatus = 'failed'
+            errorMessage = JSON.stringify(resendResult.error)
+          } else {
+            sendStatus = 'sent'
+          }
+        } catch (emailErr: any) {
+          console.error('Direct email sending error:', emailErr)
+          sendStatus = 'failed'
+          errorMessage = emailErr.message || String(emailErr)
+        }
+      }
 
       await serviceClient.from('email_queue').insert({
         recipient_email: toProfile.data.email,
@@ -97,7 +128,9 @@ export async function POST(request: NextRequest) {
         html_body: html,
         text_body: text,
         email_type: 'nudge',
-        status: 'pending',
+        status: sendStatus,
+        sent_at: sendStatus === 'sent' ? new Date().toISOString() : null,
+        error_message: errorMessage,
         scheduled_for: new Date().toISOString(),
       })
     }
