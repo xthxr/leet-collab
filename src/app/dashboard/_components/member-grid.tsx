@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { MemberStatus } from '@/types/database'
 
 interface MemberGridProps {
@@ -11,11 +12,38 @@ interface MemberGridProps {
 }
 
 export default function MemberGrid({ members, currentUserId, groupId, today }: MemberGridProps) {
+  const router = useRouter()
   const [nudgingId, setNudgingId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(
     new Set(members.filter(m => m.nudged_today).map(m => m.user_id))
   )
   const [nudgeErrors, setNudgeErrors] = useState<Record<string, string>>({})
+  
+  const currentUserIsOwner = members.find(m => m.user_id === currentUserId)?.role === 'owner'
+
+  async function handleRemove(targetUserId: string) {
+    if (!confirm('Are you sure you want to remove this member?')) return
+
+    setRemovingId(targetUserId)
+    try {
+      const res = await fetch('/api/groups/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, user_id: targetUserId }),
+      })
+      if (res.ok) {
+        router.refresh()
+      } else {
+        const data = await res.json()
+        alert(data.error ?? 'Failed to remove member')
+      }
+    } catch {
+      alert('Network error')
+    } finally {
+      setRemovingId(null)
+    }
+  }
 
   async function handleNudge(toUserId: string) {
     setNudgingId(toUserId)
@@ -111,35 +139,50 @@ export default function MemberGrid({ members, currentUserId, groupId, today }: M
                   {member.done_today ? '✓ Done' : 'Pending'}
                 </span>
 
-                {/* Nudge button */}
-                {!isMe && (
-                  <button
-                    onClick={() => canNudge && handleNudge(member.user_id)}
-                    disabled={!canNudge || nudgingId === member.user_id}
-                    title={
-                      member.done_today
-                        ? 'Already practiced'
+                {/* Buttons container */}
+                <div className="flex items-center gap-2">
+                  {/* Nudge button */}
+                  {!isMe && (
+                    <button
+                      onClick={() => canNudge && handleNudge(member.user_id)}
+                      disabled={!canNudge || nudgingId === member.user_id}
+                      title={
+                        member.done_today
+                          ? 'Already practiced'
+                          : alreadyNudged
+                          ? 'Nudge sent'
+                          : 'Send a nudge'
+                      }
+                      className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                        member.done_today
+                          ? 'border-zinc-800 text-zinc-700 cursor-default'
+                          : alreadyNudged
+                          ? 'border-zinc-800 text-zinc-600 cursor-default'
+                          : 'border-zinc-700 text-fg-muted hover:border-zinc-600 hover:text-fg cursor-pointer'
+                      } disabled:cursor-not-allowed`}
+                    >
+                      {nudgingId === member.user_id
+                        ? '…'
                         : alreadyNudged
-                        ? 'Nudge sent'
-                        : 'Send a nudge'
-                    }
-                    className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-                      member.done_today
-                        ? 'border-zinc-800 text-zinc-700 cursor-default'
-                        : alreadyNudged
-                        ? 'border-zinc-800 text-zinc-600 cursor-default'
-                        : 'border-zinc-700 text-fg-muted hover:border-zinc-600 hover:text-fg cursor-pointer'
-                    } disabled:cursor-not-allowed`}
-                  >
-                    {nudgingId === member.user_id
-                      ? '…'
-                      : alreadyNudged
-                      ? 'Nudged ✓'
-                      : member.done_today
-                      ? '—'
-                      : 'Nudge'}
-                  </button>
-                )}
+                        ? 'Nudged ✓'
+                        : member.done_today
+                        ? '—'
+                        : 'Nudge'}
+                    </button>
+                  )}
+
+                  {/* Remove button */}
+                  {currentUserIsOwner && !isMe && (
+                    <button
+                      onClick={() => handleRemove(member.user_id)}
+                      disabled={removingId === member.user_id}
+                      title="Remove member"
+                      className="text-xs px-2.5 py-1 rounded-md border border-red-900/30 text-red-500 hover:bg-red-950/30 hover:border-red-900/50 transition-colors disabled:opacity-50"
+                    >
+                      {removingId === member.user_id ? '...' : 'Remove'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )
