@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(req: Request) {
   try {
@@ -28,8 +28,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Only group owners can delete the group' }, { status: 403 })
     }
 
-    // Delete the group. Cascading deletes will handle related records.
-    const { error } = await supabase
+    // Delete the group using service role since RLS delete policy doesn't exist
+    const serviceClient = await createServiceClient()
+    const { error } = await serviceClient
       .from('groups')
       .delete()
       .eq('id', group_id)
