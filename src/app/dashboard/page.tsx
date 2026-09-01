@@ -8,6 +8,7 @@ import MemberGrid from './_components/member-grid'
 import PracticeButton from './_components/practice-button'
 import EmptyState from './_components/empty-state'
 import CopyInviteButton from './_components/copy-invite-button'
+import DeleteGroupButton from './_components/delete-group-button'
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -126,9 +127,12 @@ export default async function DashboardPage() {
                         {allDone && ' · 🎉 All done!'}
                       </p>
                     </div>
-                    {/* Invite link */}
+                    {/* Group Actions */}
                     {myStatus?.role === 'owner' && (
-                      <CopyInviteButton inviteCode={dashboard.group.invite_code} />
+                      <div className="flex items-center gap-2">
+                        <CopyInviteButton inviteCode={dashboard.group.invite_code} />
+                        <DeleteGroupButton groupId={dashboard.group.id} />
+                      </div>
                     )}
                   </div>
 
