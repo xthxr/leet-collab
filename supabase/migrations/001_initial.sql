@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_url      TEXT,
   leetcode_username TEXT,
   leetcode_verified BOOLEAN NOT NULL DEFAULT FALSE,
-  timezone        TEXT NOT NULL DEFAULT 'UTC',
+  timezone        TEXT NOT NULL DEFAULT 'Asia/Kolkata',
   email_nudges    BOOLEAN NOT NULL DEFAULT TRUE,
   email_reminders BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -302,7 +302,7 @@ CREATE TRIGGER groups_updated_at BEFORE UPDATE ON groups
 CREATE OR REPLACE FUNCTION recalculate_group_streak(p_group_id UUID)
 RETURNS VOID AS $$
 DECLARE
-  v_today          DATE := CURRENT_DATE AT TIME ZONE 'UTC';
+  v_today          DATE := (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE;
   v_yesterday      DATE := v_today - INTERVAL '1 day';
   v_active_members INT;
   v_done_today     INT;
@@ -311,14 +311,12 @@ DECLARE
   v_new_longest    INT;
   v_event_type     TEXT;
 BEGIN
-  -- Count active members (exclude members who joined today — grace period)
+  -- Count active members
   SELECT COUNT(*) INTO v_active_members
   FROM group_members
   WHERE group_id = p_group_id
-    AND is_active = TRUE
-    AND joined_at::DATE < v_today;
+    AND is_active = TRUE;
 
-  -- If no members have been in for >1 day yet, nothing to do
   IF v_active_members = 0 THEN
     RETURN;
   END IF;
@@ -329,8 +327,7 @@ BEGIN
   JOIN group_members gm ON gm.user_id = da.user_id AND gm.group_id = da.group_id
   WHERE da.group_id = p_group_id
     AND da.activity_date = v_today
-    AND gm.is_active = TRUE
-    AND gm.joined_at::DATE < v_today;
+    AND gm.is_active = TRUE;
 
   -- Not all members done yet — no streak change
   IF v_done_today < v_active_members THEN
@@ -447,7 +444,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION get_group_dashboard(p_group_id UUID, p_user_id UUID)
 RETURNS JSON AS $$
 DECLARE
-  v_today DATE := CURRENT_DATE AT TIME ZONE 'UTC';
+  v_today DATE := (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE;
   v_result JSON;
 BEGIN
   -- Verify caller is a member

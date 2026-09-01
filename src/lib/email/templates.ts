@@ -95,7 +95,7 @@ export function buildReminderEmail({
   const pendingList = pendingMembers.map(n => `<span class="badge">${n}</span>`).join(' ')
   const html = baseTemplate(`
     <h1>${hoursLeft} hours left to save the streak</h1>
-    <p>The <span class="highlight">${groupName}</span> streak will break at midnight UTC unless everyone practices.</p>
+    <p>The <span class="highlight">${groupName}</span> streak will break at midnight IST unless everyone practices.</p>
     <hr class="divider">
     <p style="margin-bottom: 4px; font-size: 13px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em;">Current streak</p>
     <div class="streak">${currentStreak} days</div>

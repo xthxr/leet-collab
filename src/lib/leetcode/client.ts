@@ -92,18 +92,22 @@ export const leetCodeService: LeetCodeService = {
     try {
       const submissions = await this.getRecentAcSubmissions(username)
 
-      // Get today's date boundaries in UTC
+      // Get today's date boundaries in IST
       const now = new Date()
-      const todayStartUTC = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)
-      )
-      const todayEndUTC = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)
-      )
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      })
+      const parts = formatter.formatToParts(now)
+      const p = Object.fromEntries(parts.map(p => [p.type, p.value]))
+      const todayDateStr = `${p.year}-${p.month}-${p.day}`
+
+      const todayStartIST = new Date(`${todayDateStr}T00:00:00+05:30`)
+      const todayEndIST = new Date(`${todayDateStr}T23:59:59.999+05:30`)
 
       const todaySubmission = submissions.find((s) => {
         const submittedAt = new Date(parseInt(s.timestamp) * 1000)
-        return submittedAt >= todayStartUTC && submittedAt <= todayEndUTC
+        return submittedAt >= todayStartIST && submittedAt <= todayEndIST
       })
 
       return {

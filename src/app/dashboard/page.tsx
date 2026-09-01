@@ -49,9 +49,17 @@ export default async function DashboardPage() {
     if (data) dashboards.push(data as unknown as GroupDashboard)
   }
 
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
-  const hoursLeft = 24 - today.getUTCHours() - (today.getUTCMinutes() > 0 ? 1 : 0)
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  })
+  const parts = formatter.formatToParts(now)
+  const p = Object.fromEntries(parts.map(p => [p.type, p.value]))
+  
+  const todayStr = `${p.year}-${p.month}-${p.day}`
+  const hoursLeft = 24 - parseInt(p.hour, 10) - (parseInt(p.minute, 10) > 0 ? 1 : 0)
 
   return (
     <div className="min-h-dvh">
@@ -86,7 +94,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
             <span className="text-sm text-fg-muted">
-              Daily deadline: <span className="text-fg font-medium">midnight UTC</span>
+              Daily deadline: <span className="text-fg font-medium">midnight IST</span>
             </span>
           </div>
           <span className="text-sm font-mono text-fg-muted">

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (!hasSubmitted || !submission) {
       return NextResponse.json({
         verified: false,
-        message: "No accepted submission found for today (UTC). Solve a problem on LeetCode first.",
+        message: "No accepted submission found for today (IST). Solve a problem on LeetCode first.",
       })
     }
 
