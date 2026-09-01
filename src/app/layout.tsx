@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   },
 }
 
+import { AndroidWidgetProvider } from '@/components/android-widget-provider'
+
 export default function RootLayout({
   children,
 }: {
@@ -30,7 +32,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        <AndroidWidgetProvider />
+        {children}
+      </body>
     </html>
   )
 }
