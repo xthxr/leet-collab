@@ -257,25 +257,25 @@ CREATE POLICY "streak_history_select" ON streak_history FOR SELECT USING (
 -- ============================================================
 
 -- Auto-create profile on user sign-up
-CREATE OR REPLACE FUNCTION handle_new_user()
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name, avatar_url)
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
   VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''),
     NEW.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE OR REPLACE TRIGGER on_auth_user_created
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Update updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at()
