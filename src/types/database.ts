@@ -182,6 +182,8 @@ export interface Database {
           status?: 'pending' | 'sent' | 'failed' | 'skipped'
           email_type?: 'nudge' | 'reminder' | 'system'
           scheduled_for?: string
+          sent_at?: string | null
+          error_message?: string | null
         }
         Update: {
           status?: 'pending' | 'sent' | 'failed' | 'skipped'
