@@ -7,6 +7,7 @@ import StreakCard from './_components/streak-card'
 import MemberGrid from './_components/member-grid'
 import PracticeButton from './_components/practice-button'
 import EmptyState from './_components/empty-state'
+import CopyInviteButton from './_components/copy-invite-button'
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -118,12 +119,9 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                     {/* Invite link */}
-                    <Link
-                      href={`/invite/${dashboard.group.invite_code}`}
-                      className="text-xs text-fg-subtle hover:text-fg-muted transition-colors border border-zinc-800 rounded-md px-3 py-1.5"
-                    >
-                      Invite link
-                    </Link>
+                    {myStatus?.role === 'owner' && (
+                      <CopyInviteButton inviteCode={dashboard.group.invite_code} />
+                    )}
                   </div>
 
                   {/* Streak + Members grid */}

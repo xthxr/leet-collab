@@ -6,14 +6,20 @@ import { useRouter } from 'next/navigation'
 interface Props {
   inviteCode: string
   isLoggedIn: boolean
+  isMember?: boolean
 }
 
-export default function InvitePageClient({ inviteCode, isLoggedIn }: Props) {
+export default function InvitePageClient({ inviteCode, isLoggedIn, isMember }: Props) {
   const router = useRouter()
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
   async function handleJoin() {
+    if (isMember) {
+      router.push('/dashboard')
+      return
+    }
+
     if (!isLoggedIn) {
       router.push(`/login?next=/invite/${inviteCode}`)
       return
@@ -63,6 +69,8 @@ export default function InvitePageClient({ inviteCode, isLoggedIn }: Props) {
       >
         {status === 'loading'
           ? 'Joining…'
+          : isMember
+          ? 'Go to dashboard →'
           : isLoggedIn
           ? 'Accept invite & join group →'
           : 'Sign in to join →'}

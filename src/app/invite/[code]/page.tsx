@@ -61,6 +61,19 @@ export default async function InvitePage({ params }: Props) {
   // Check if user is already logged in
   const { data: { user } } = await supabase.auth.getUser()
 
+  let isMember = false
+  if (user) {
+    const { data: membership } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', group.id)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single()
+    
+    if (membership) isMember = true
+  }
+
   return (
     <main className="min-h-dvh flex items-center justify-center px-6">
       <div className="w-full max-w-sm animate-scale-in">
@@ -92,6 +105,7 @@ export default async function InvitePage({ params }: Props) {
         <InvitePageClient
           inviteCode={code}
           isLoggedIn={!!user}
+          isMember={isMember}
         />
 
         <p className="text-xs text-fg-subtle text-center mt-6 leading-relaxed">
