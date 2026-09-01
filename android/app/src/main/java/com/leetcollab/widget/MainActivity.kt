@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidWidget")
 
         // Replace with production URL
-        webView.loadUrl("https://leet-collab.vercel.app")
+        webView.loadUrl("https://leetcollab.brokedevs.xyz")
 
         scheduleWidgetUpdates()
     }

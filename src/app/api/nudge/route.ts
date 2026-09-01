@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         fromName: fromProfile.data.full_name ?? 'A teammate',
         groupName: group.data.name,
         currentStreak: streak.data?.current_streak ?? 0,
-        appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://leet-collab.vercel.app',
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://leetcollab.brokedevs.xyz',
       })
 
       let sendStatus: 'pending' | 'sent' | 'failed' | 'skipped' = 'pending'

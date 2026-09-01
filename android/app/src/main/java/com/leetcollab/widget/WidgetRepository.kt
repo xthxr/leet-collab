@@ -15,7 +15,7 @@ object WidgetRepository {
     private const val TOKEN_KEY = "supabase_access_token"
     
     // Replace with production URL
-    private const val API_URL = "https://leet-collab.vercel.app/api/widget/status"
+    private const val API_URL = "https://leetcollab.brokedevs.xyz/api/widget/status"
     
     private val client = OkHttpClient()
 
