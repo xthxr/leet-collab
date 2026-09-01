@@ -1,7 +1,10 @@
-// Database types generated from Supabase schema
+// Database types for Supabase
 // Keep in sync with supabase/migrations/001_initial.sql
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
+
+// Required by Supabase GenericTable
+type NoRel = { Relationships: [] }
 
 export interface Database {
   public: {
@@ -20,8 +23,27 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['profiles']['Insert']>
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          avatar_url?: string | null
+          leetcode_username?: string | null
+          leetcode_verified?: boolean
+          timezone?: string
+          email_nudges?: boolean
+          email_reminders?: boolean
+        }
+        Update: {
+          full_name?: string | null
+          avatar_url?: string | null
+          leetcode_username?: string | null
+          leetcode_verified?: boolean
+          timezone?: string
+          email_nudges?: boolean
+          email_reminders?: boolean
+        }
+        Relationships: []
       }
       groups: {
         Row: {
@@ -33,8 +55,16 @@ export interface Database {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['groups']['Row'], 'id' | 'invite_code' | 'created_at' | 'updated_at'>
-        Update: Partial<Pick<Database['public']['Tables']['groups']['Row'], 'name' | 'max_members'>>
+        Insert: {
+          name: string
+          created_by: string
+          max_members?: number
+        }
+        Update: {
+          name?: string
+          max_members?: number
+        }
+        Relationships: []
       }
       group_members: {
         Row: {
@@ -45,8 +75,17 @@ export interface Database {
           is_active: boolean
           joined_at: string
         }
-        Insert: Omit<Database['public']['Tables']['group_members']['Row'], 'id' | 'joined_at'>
-        Update: Partial<Pick<Database['public']['Tables']['group_members']['Row'], 'role' | 'is_active'>>
+        Insert: {
+          group_id: string
+          user_id: string
+          role?: 'owner' | 'member'
+          is_active?: boolean
+        }
+        Update: {
+          role?: 'owner' | 'member'
+          is_active?: boolean
+        }
+        Relationships: []
       }
       group_streaks: {
         Row: {
@@ -58,8 +97,22 @@ export interface Database {
           total_days_active: number
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['group_streaks']['Row'], 'updated_at'>
-        Update: Partial<Database['public']['Tables']['group_streaks']['Row']>
+        Insert: {
+          group_id: string
+          current_streak?: number
+          longest_streak?: number
+          last_active_date?: string | null
+          broken_at?: string | null
+          total_days_active?: number
+        }
+        Update: {
+          current_streak?: number
+          longest_streak?: number
+          last_active_date?: string | null
+          broken_at?: string | null
+          total_days_active?: number
+        }
+        Relationships: []
       }
       daily_activity: {
         Row: {
@@ -73,8 +126,17 @@ export interface Database {
           problem_slug: string | null
           language: string | null
         }
-        Insert: Omit<Database['public']['Tables']['daily_activity']['Row'], 'id' | 'verified_at'>
-        Update: never
+        Insert: {
+          group_id: string
+          user_id: string
+          activity_date?: string
+          submission_id?: string | null
+          problem_title?: string | null
+          problem_slug?: string | null
+          language?: string | null
+        }
+        Update: Record<string, never>
+        Relationships: []
       }
       nudges: {
         Row: {
@@ -83,10 +145,18 @@ export interface Database {
           from_user_id: string
           to_user_id: string
           nudge_type: 'manual' | 'auto'
+          sent_date: string
           sent_at: string
         }
-        Insert: Omit<Database['public']['Tables']['nudges']['Row'], 'id' | 'sent_at'>
-        Update: never
+        Insert: {
+          group_id: string
+          from_user_id: string
+          to_user_id: string
+          nudge_type?: 'manual' | 'auto'
+          sent_date?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
       }
       email_queue: {
         Row: {
@@ -104,8 +174,23 @@ export interface Database {
           error_message: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['email_queue']['Row'], 'id' | 'created_at' | 'attempts' | 'last_attempted' | 'sent_at'>
-        Update: Partial<Database['public']['Tables']['email_queue']['Row']>
+        Insert: {
+          recipient_email: string
+          subject: string
+          html_body: string
+          text_body?: string | null
+          status?: 'pending' | 'sent' | 'failed' | 'skipped'
+          email_type?: 'nudge' | 'reminder' | 'system'
+          scheduled_for?: string
+        }
+        Update: {
+          status?: 'pending' | 'sent' | 'failed' | 'skipped'
+          attempts?: number
+          last_attempted?: string | null
+          sent_at?: string | null
+          error_message?: string | null
+        }
+        Relationships: []
       }
       streak_history: {
         Row: {
@@ -116,14 +201,23 @@ export interface Database {
           event_date: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['streak_history']['Row'], 'id' | 'created_at'>
-        Update: never
+        Insert: {
+          group_id: string
+          event_type: 'extended' | 'broken' | 'started' | 'reset'
+          streak_day: number
+          event_date?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       recalculate_group_streak: {
         Args: { p_group_id: string }
-        Returns: void
+        Returns: undefined
       }
       join_group_by_invite: {
         Args: { p_invite_code: string; p_user_id: string }
@@ -137,6 +231,9 @@ export interface Database {
         Args: { p_group_id: string; p_user_id: string }
         Returns: boolean
       }
+    }
+    Enums: {
+      [_ in never]: never
     }
   }
 }
@@ -178,8 +275,6 @@ export interface LeetCodeSubmission {
   timestamp: string
   statusDisplay: string
   lang: string
-  runtime: string
-  memory: string
 }
 
 export interface VerifySubmissionResult {

@@ -79,9 +79,10 @@ CREATE TABLE IF NOT EXISTS nudges (
   from_user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   to_user_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   nudge_type   TEXT NOT NULL DEFAULT 'manual' CHECK (nudge_type IN ('manual', 'auto')),
+  sent_date    DATE NOT NULL DEFAULT CURRENT_DATE,
   sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   -- one manual nudge per sender→recipient per group per day
-  UNIQUE (group_id, from_user_id, to_user_id, (sent_at::DATE))
+  UNIQUE (group_id, from_user_id, to_user_id, sent_date)
 );
 
 -- email_queue: transactional email jobs
@@ -160,10 +161,16 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- profiles RLS
+DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
 CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
 CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
--- Members can read each other's profiles
+
+DROP POLICY IF EXISTS "profiles_select_group_members" ON profiles;
 CREATE POLICY "profiles_select_group_members" ON profiles FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM group_members gm1
@@ -176,52 +183,71 @@ CREATE POLICY "profiles_select_group_members" ON profiles FOR SELECT USING (
 );
 
 -- groups RLS
+DROP POLICY IF EXISTS "groups_select_members" ON groups;
 CREATE POLICY "groups_select_members" ON groups FOR SELECT USING (
   is_group_member(id, auth.uid())
 );
+
+DROP POLICY IF EXISTS "groups_insert_authenticated" ON groups;
 CREATE POLICY "groups_insert_authenticated" ON groups FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+DROP POLICY IF EXISTS "groups_update_owner" ON groups;
 CREATE POLICY "groups_update_owner" ON groups FOR UPDATE USING (is_group_owner(id, auth.uid()));
 
--- Allow reading groups by invite code (public — needed for invite page)
+DROP POLICY IF EXISTS "groups_select_by_invite" ON groups;
 CREATE POLICY "groups_select_by_invite" ON groups FOR SELECT USING (TRUE);
 
 -- group_members RLS
+DROP POLICY IF EXISTS "group_members_select" ON group_members;
 CREATE POLICY "group_members_select" ON group_members FOR SELECT USING (
   user_id = auth.uid() OR is_group_member(group_id, auth.uid())
 );
+
+DROP POLICY IF EXISTS "group_members_insert_own" ON group_members;
 CREATE POLICY "group_members_insert_own" ON group_members FOR INSERT WITH CHECK (
   user_id = auth.uid()
 );
+
+DROP POLICY IF EXISTS "group_members_update_owner" ON group_members;
 CREATE POLICY "group_members_update_owner" ON group_members FOR UPDATE USING (
   is_group_owner(group_id, auth.uid()) OR user_id = auth.uid()
 );
 
 -- group_streaks RLS
+DROP POLICY IF EXISTS "group_streaks_select" ON group_streaks;
 CREATE POLICY "group_streaks_select" ON group_streaks FOR SELECT USING (
   is_group_member(group_id, auth.uid())
 );
 -- streaks are only updated via service role / db functions
 
 -- daily_activity RLS
+DROP POLICY IF EXISTS "daily_activity_select" ON daily_activity;
 CREATE POLICY "daily_activity_select" ON daily_activity FOR SELECT USING (
   is_group_member(group_id, auth.uid())
 );
+
+DROP POLICY IF EXISTS "daily_activity_insert_own" ON daily_activity;
 CREATE POLICY "daily_activity_insert_own" ON daily_activity FOR INSERT WITH CHECK (
   user_id = auth.uid() AND is_group_member(group_id, auth.uid())
 );
 
 -- nudges RLS
+DROP POLICY IF EXISTS "nudges_select" ON nudges;
 CREATE POLICY "nudges_select" ON nudges FOR SELECT USING (
   to_user_id = auth.uid() OR from_user_id = auth.uid()
 );
+
+DROP POLICY IF EXISTS "nudges_insert" ON nudges;
 CREATE POLICY "nudges_insert" ON nudges FOR INSERT WITH CHECK (
   from_user_id = auth.uid() AND is_group_member(group_id, auth.uid())
 );
 
 -- email_queue RLS — service role only (no user access)
+DROP POLICY IF EXISTS "email_queue_service_only" ON email_queue;
 CREATE POLICY "email_queue_service_only" ON email_queue FOR ALL USING (FALSE);
 
 -- streak_history RLS
+DROP POLICY IF EXISTS "streak_history_select" ON streak_history;
 CREATE POLICY "streak_history_select" ON streak_history FOR SELECT USING (
   is_group_member(group_id, auth.uid())
 );
@@ -246,6 +272,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
@@ -259,8 +286,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS groups_updated_at ON groups;
 CREATE TRIGGER groups_updated_at BEFORE UPDATE ON groups
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 

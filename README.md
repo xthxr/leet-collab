@@ -1,36 +1,139 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LeetCollab 🔥
 
-## Getting Started
+> Streak accountability for LeetCode friends. Solve at least one problem daily — together.
 
-First, run the development server:
+## Overview
+
+LeetCollab is a production-quality web app for groups of 2–5 friends who want to hold each other accountable on LeetCode. Everyone in the group must solve at least one accepted LeetCode problem per day. If one person misses the day, the **entire group's streak breaks**.
+
+**Stack:** Next.js 15 · TypeScript · Tailwind CSS · Supabase (Auth + PostgreSQL + Edge Functions) · Resend
+
+---
+
+## Setup
+
+### 1. Prerequisites
+
+- Node.js 18+
+- A [Supabase](https://supabase.com) project
+- A [Resend](https://resend.com) account (free tier works)
+- Google OAuth credentials (from [Google Cloud Console](https://console.cloud.google.com))
+
+### 2. Clone & install
+
+```bash
+git clone <repo>
+cd leet-collab
+npm install
+```
+
+### 3. Environment variables
+
+```bash
+cp .env.local.example .env.local
+# Fill in your values
+```
+
+Required:
+- `NEXT_PUBLIC_SUPABASE_URL` — from Supabase dashboard → Settings → API
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — same place
+- `SUPABASE_SERVICE_ROLE_KEY` — same place (keep secret!)
+- `RESEND_API_KEY` — from [resend.com/api-keys](https://resend.com/api-keys)
+- `NEXT_PUBLIC_APP_URL` — `http://localhost:3000` for dev
+
+### 4. Database migration
+
+In Supabase dashboard → **SQL Editor**, paste and run the contents of:
+
+```
+supabase/migrations/001_initial.sql
+```
+
+This creates all tables, RLS policies, indexes, triggers, and database functions.
+
+### 5. Google OAuth
+
+1. [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → OAuth consent screen → Configure
+2. Create OAuth 2.0 Client ID (Web application)
+3. Authorized redirect URIs:
+   - `http://localhost:3000/auth/callback` (dev)
+   - `https://your-domain.com/auth/callback` (prod)
+4. Supabase dashboard → Authentication → Providers → Google → paste Client ID & Secret
+
+### 6. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Edge Functions (optional for local dev)
 
-## Learn More
+Edge functions handle background email sending and deadline reminders. For production:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Deploy edge functions
+supabase functions deploy send-emails
+supabase functions deploy deadline-reminder
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Set env vars
+supabase secrets set RESEND_API_KEY=your-key
+supabase secrets set NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
 
-## Deploy on Vercel
+Then in Supabase SQL Editor, enable `pg_cron` and schedule the functions (see commented SQL at bottom of `001_initial.sql`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture
+
+```
+src/
+├── app/
+│   ├── login/              ← Google OAuth sign-in
+│   ├── onboarding/         ← LeetCode username setup
+│   ├── dashboard/          ← Main streak dashboard
+│   ├── groups/new/         ← Create a group
+│   ├── invite/[code]/      ← Public invite page
+│   ├── settings/           ← Profile & preferences
+│   └── api/
+│       ├── leetcode/       ← verify-submission, verify-username
+│       ├── groups/         ← create, join
+│       ├── nudge/          ← send nudge + queue email
+│       └── profile/        ← update profile
+├── lib/
+│   ├── supabase/           ← server + client helpers
+│   ├── leetcode/           ← LeetCodeService (unofficial GraphQL)
+│   └── email/              ← template builders + Resend
+├── features/auth/          ← server actions (signIn, signOut)
+└── types/database.ts       ← Full DB + app types
+
+supabase/
+├── migrations/001_initial.sql   ← All tables, RLS, functions
+└── functions/
+    ├── send-emails/         ← Processes email_queue (pg_cron every 5m)
+    └── deadline-reminder/   ← Queues reminders (pg_cron at 21:00 UTC)
+```
+
+## Key Design Decisions
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Streak calculation | Server-side Postgres function | Idempotent, deterministic, no race conditions |
+| LeetCode verification | Unofficial public GraphQL | No official API exists; abstracted for easy swap |
+| Email delivery | Resend + email_queue table | Retry logic, no duplicate sends, observable |
+| Daily deadline | Midnight UTC | Simple, consistent, deterministic for all users |
+| Member cap enforcement | DB function (`join_group_by_invite`) | Atomic — prevents race condition on join |
+| Auth | Google OAuth via Supabase | No password management; quick onboarding |
+
+---
+
+## License
+
+MIT
