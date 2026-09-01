@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://leet-collab.vercel.app',
       })
 
-      let sendStatus = 'pending'
+      let sendStatus: 'pending' | 'sent' | 'failed' | 'skipped' = 'pending'
       let errorMessage: string | null = null
 
       if (process.env.RESEND_API_KEY) {
