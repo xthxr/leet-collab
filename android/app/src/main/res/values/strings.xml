@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LeetCollab</string>
+    <string name="widget_name">LeetCollab Streak</string>
+    <string name="widget_description">Shows your current streak and reminds you to practice.</string>
+</resources>\n
